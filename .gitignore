@@ -34,7 +34,7 @@ import android.widget.Toast;
 
 public class Gates extends Activity {
 
-  EditText siglaGate;
+	EditText siglaGate;
 	Button addGate;
 	Button removeGate;
 	Button newLocal;
@@ -63,16 +63,37 @@ public class Gates extends Activity {
 		listaGates.setCacheColorHint(Color.BLACK); 
 		final ArrayAdapter<Gate> myArrayAdapter = new ArrayAdapter<Gate>(this, R.layout.my_custom_layout, listaGate);
 		listaGates.setAdapter(myArrayAdapter);
-
-		//ler locais ja existentes e carregar
-
 		final ArrayList<String> listaLocais = new ArrayList<String>();
-
 		final ArrayAdapter<String> myArrayAdapterLocais = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, listaLocais);
 		myArrayAdapterLocais.notifyDataSetChanged();
 		listaLocaisSpinner.setAdapter(myArrayAdapterLocais); 
 
+		//ler locais ja existentes e carregar
+		try {
+			String url = Environment.getExternalStorageDirectory().getAbsolutePath() + "/counter/";
+			FileInputStream fstream;
+			fstream = new FileInputStream(url + "ipm_config.txt");
+			DataInputStream in = new DataInputStream(fstream);
+			BufferedReader br = new BufferedReader(new InputStreamReader(in));
+			String scanLinha = br.readLine(); //1ª Linha
+			if(scanLinha.contains(marca_identificacao)) {
+				// só ler configs
+				while(!scanLinha.contains("[ListaLocais]")) {
+					scanLinha = br.readLine();
+				}
+				while(!scanLinha.contains("endListaLocais;")) {
+					if(scanLinha.contains("nomeLocal=")) {
+						String add = retiraExtraInfo(scanLinha);
+						listaLocais.add(add);
+					}
+					scanLinha = br.readLine();
+				}
 
+				myArrayAdapterLocais.notifyDataSetChanged();
+			}
+		}   catch (IOException e) {
+			e.printStackTrace();
+		}
 		listaLocaisSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
 			public void onItemSelected(AdapterView<?> arg0, View arg1,int arg2, long arg3) {
 				localActual = (String) ((TextView) arg1).getText().toString();
@@ -86,73 +107,60 @@ public class Gates extends Activity {
 		});
 
 		gravarLocal.setOnClickListener(new OnClickListener() {
-
 			@Override
 			public void onClick(View v) {
-				gravarLocal.setOnClickListener(new OnClickListener() {
+				String leituraFicheiro = "";
+				try {
+					String url = Environment.getExternalStorageDirectory().getAbsolutePath() + "/counter/";
+					FileInputStream fstream;
+					fstream = new FileInputStream(url + "ipm_config.txt");
+					DataInputStream in = new DataInputStream(fstream);
+					BufferedReader br = new BufferedReader(new InputStreamReader(in));
 
-					@Override
-					public void onClick(View v) {
-						String leituraFicheiro = "";
-						try {
-							String url = Environment.getExternalStorageDirectory().getAbsolutePath() + "/counter/";
-							FileInputStream fstream;
-							fstream = new FileInputStream(url + "ipm_config.txt");
-							DataInputStream in = new DataInputStream(fstream);
-							BufferedReader br = new BufferedReader(new InputStreamReader(in));
+					String scanLinha = br.readLine();
 
-							String scanLinha = br.readLine();
-
-							while(!scanLinha.equals("[ListaLocais]")) {
-								leituraFicheiro+=scanLinha + "\n";
-								scanLinha = br.readLine();
-							}
-							//copiar o [ListaGates_Locais]
-							leituraFicheiro+=scanLinha + "\n";
-
-							while(!scanLinha.equals("endListaGatesGeral;") && scanLinha != null) {
-								//nunca entra aqui
-								if(scanLinha.contains("nomeLocal=")) {
-									//encontrou o local que queria
-									//if(retiraExtraInfo(scanLinha).equals(local.getText().toString())) {
-									if(retiraExtraInfo(scanLinha).equals(localActual)) {
-										String local = scanLinha;
-										String aux = "";
-										//só pode adicionar 25 gates
-
-										for (int i = 0; i != listaGate.size(); i++) {
-											aux+= "gateNome=" + listaGate.get(i).toString() + "\n";
-											System.out.println(aux + " aux " + i);
-										}
-										leituraFicheiro+=local+"\n"+aux+"endListaGatesIndividual;\n";
-									}
-									//não é o local desejado
-									else {
-										while(!scanLinha.equals("endListaGatesIndividual;")) {
-											leituraFicheiro+=scanLinha + "\n";
-											scanLinha = br.readLine();
-										}
-										//copiar o endListGatesIndividual;
-										leituraFicheiro+=scanLinha+ "\n";
-									}
-								}
-								scanLinha = br.readLine();
-							}
-							leituraFicheiro+="endListaGatesGeral;";
-							in.close();
-							FileWriter fstreamWrite;
-							fstreamWrite = new FileWriter(url + "/ipm_config.txt");
-							BufferedWriter out = new BufferedWriter(fstreamWrite);
-							out.write(leituraFicheiro);
-							out.close();
-						}  catch (IOException e) {
-							e.printStackTrace();
-						}
-
+					while(!scanLinha.equals("[ListaGates_Locais]")) {
+						leituraFicheiro+=scanLinha + "\n";
+						scanLinha = br.readLine();
 					}
-				});
+					leituraFicheiro+=scanLinha + "\n";
 
+					while(!scanLinha.equals("endListaGatesGeral;") && scanLinha != null) {
+						if(scanLinha.contains("nomeLocal=")) {
+							if(retiraExtraInfo(scanLinha).equals(localActual)) {
+								String local = scanLinha;
+								String aux = "";
+								//só pode adicionar 25 gates
+								for (int i = 0; i != listaGate.size(); i++) {
+									aux+= "gateNome=" + listaGate.get(i).toString() + "\n";
+									System.out.println(aux + " aux " + i);
+								}
+								leituraFicheiro+=local+"\n"+aux+"endListaGatesIndividual;\n";
+							}
+							else {
+								while(!scanLinha.equals("endListaGatesIndividual;")) {
+									leituraFicheiro+=scanLinha + "\n";
+									scanLinha = br.readLine();
+								}
+								leituraFicheiro+=scanLinha+ "\n";
+							}
+						}
+						scanLinha = br.readLine();
+					}
+					leituraFicheiro+="endListaGatesGeral;";
+					in.close();
+					FileWriter fstreamWrite;
+					fstreamWrite = new FileWriter(url + "/ipm_config.txt");
+					BufferedWriter out = new BufferedWriter(fstreamWrite);
+					out.write(leituraFicheiro);
+					out.close();
+				}  catch (IOException e) {
+					e.printStackTrace();
+					Toast.makeText(Gates.this, e +" Erro ao gravar!", Toast.LENGTH_LONG).show();
+				}
+				Toast.makeText(Gates.this, "Saved!", Toast.LENGTH_LONG).show();
 			}
+
 		});
 
 		addGate.setOnClickListener(new OnClickListener() {
