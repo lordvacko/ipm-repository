@@ -1,0 +1,294 @@
+package com.example.ipm_inicial;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.DataInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.os.Environment;
+import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.Toast;
+
+public class Gates extends Activity {
+
+  EditText siglaGate;
+	Button addGate;
+	Button removeGate;
+	Button newLocal;
+	Button gravarLocal;
+	ArrayList<Gate> listaGate;
+	ListView listaGates;
+	boolean remover = false;
+	Spinner listaLocaisSpinner;
+	String localActual = ""; 
+	String leituraFicheiro = "";
+	String marca_identificacao = "marca_identificadora_ficheiro_configFileAndroid.txt-IPM_TrabalhoGrupo;";
+
+
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.gates);
+		listaLocaisSpinner = (Spinner)findViewById(R.id.spinner_locais);
+		newLocal = (Button)findViewById(R.id.novo_local);
+		gravarLocal = (Button)findViewById(R.id.gravar_local);
+		siglaGate = (EditText)findViewById(R.id.sigla_para_novo_gate);
+		addGate = (Button)findViewById(R.id.button_add_gate);
+		removeGate =(Button)findViewById(R.id.button_remove_gate);
+		listaGates = (ListView)findViewById(R.id.listView2); 
+		listaGate = new ArrayList<Gate>();
+		listaGates.setTextFilterEnabled(true);
+		listaGates.setCacheColorHint(Color.BLACK); 
+		final ArrayAdapter<Gate> myArrayAdapter = new ArrayAdapter<Gate>(this, R.layout.my_custom_layout, listaGate);
+		listaGates.setAdapter(myArrayAdapter);
+
+		//ler locais ja existentes e carregar
+
+		final ArrayList<String> listaLocais = new ArrayList<String>();
+
+		final ArrayAdapter<String> myArrayAdapterLocais = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, listaLocais);
+		myArrayAdapterLocais.notifyDataSetChanged();
+		listaLocaisSpinner.setAdapter(myArrayAdapterLocais); 
+
+
+		listaLocaisSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+			public void onItemSelected(AdapterView<?> arg0, View arg1,int arg2, long arg3) {
+				localActual = (String) ((TextView) arg1).getText().toString();
+			}
+
+			@Override
+			public void onNothingSelected(AdapterView<?> arg0) {
+				// TODO Auto-generated method stub
+			}
+
+		});
+
+		gravarLocal.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				gravarLocal.setOnClickListener(new OnClickListener() {
+
+					@Override
+					public void onClick(View v) {
+						String leituraFicheiro = "";
+						try {
+							String url = Environment.getExternalStorageDirectory().getAbsolutePath() + "/counter/";
+							FileInputStream fstream;
+							fstream = new FileInputStream(url + "ipm_config.txt");
+							DataInputStream in = new DataInputStream(fstream);
+							BufferedReader br = new BufferedReader(new InputStreamReader(in));
+
+							String scanLinha = br.readLine();
+
+							while(!scanLinha.equals("[ListaLocais]")) {
+								leituraFicheiro+=scanLinha + "\n";
+								scanLinha = br.readLine();
+							}
+							//copiar o [ListaGates_Locais]
+							leituraFicheiro+=scanLinha + "\n";
+
+							while(!scanLinha.equals("endListaGatesGeral;") && scanLinha != null) {
+								//nunca entra aqui
+								if(scanLinha.contains("nomeLocal=")) {
+									//encontrou o local que queria
+									//if(retiraExtraInfo(scanLinha).equals(local.getText().toString())) {
+									if(retiraExtraInfo(scanLinha).equals(localActual)) {
+										String local = scanLinha;
+										String aux = "";
+										//só pode adicionar 25 gates
+
+										for (int i = 0; i != listaGate.size(); i++) {
+											aux+= "gateNome=" + listaGate.get(i).toString() + "\n";
+											System.out.println(aux + " aux " + i);
+										}
+										leituraFicheiro+=local+"\n"+aux+"endListaGatesIndividual;\n";
+									}
+									//não é o local desejado
+									else {
+										while(!scanLinha.equals("endListaGatesIndividual;")) {
+											leituraFicheiro+=scanLinha + "\n";
+											scanLinha = br.readLine();
+										}
+										//copiar o endListGatesIndividual;
+										leituraFicheiro+=scanLinha+ "\n";
+									}
+								}
+								scanLinha = br.readLine();
+							}
+							leituraFicheiro+="endListaGatesGeral;";
+							in.close();
+							FileWriter fstreamWrite;
+							fstreamWrite = new FileWriter(url + "/ipm_config.txt");
+							BufferedWriter out = new BufferedWriter(fstreamWrite);
+							out.write(leituraFicheiro);
+							out.close();
+						}  catch (IOException e) {
+							e.printStackTrace();
+						}
+
+					}
+				});
+
+			}
+		});
+
+		addGate.setOnClickListener(new OnClickListener() {
+			public void onClick(View v) {
+				if(!siglaGate.getText().toString().trim().equals("")) {
+					if(localActual.trim().length() != 0) {
+						Gate a = new Gate(localActual, siglaGate.getText().toString());
+						listaGate.add(a);
+						myArrayAdapter.notifyDataSetChanged();
+						siglaGate.setText("");
+					}
+					else{
+						AlertDialog.Builder alertDialog = new AlertDialog.Builder(Gates.this);  
+						alertDialog.setTitle("Alerta");  
+						alertDialog.setMessage("Nao tem um local selecionado!");  
+						alertDialog.setNegativeButton("OK", new DialogInterface.OnClickListener() {  
+							public void onClick(DialogInterface dialog, int which) {  
+								return;   
+							} });  
+						AlertDialog alert = alertDialog.create();
+						alert.show();
+					}
+				} 
+				else {
+					AlertDialog.Builder alertDialog = new AlertDialog.Builder(Gates.this);  
+					alertDialog.setTitle("Alerta");  
+					alertDialog.setMessage("Nome de local inválido!");  
+					alertDialog.setNegativeButton("OK", new DialogInterface.OnClickListener() {  
+						public void onClick(DialogInterface dialog, int which) {  
+							return;   
+						} });  
+					AlertDialog alert = alertDialog.create();
+					alert.show();
+				}
+				closeOptionsMenu();
+				closeContextMenu();
+			}
+		});
+
+		newLocal.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				final AlertDialog.Builder alert = new AlertDialog.Builder(Gates.this);
+				final EditText input = new EditText(Gates.this);
+				input.setSingleLine(true);
+				alert.setView(input);
+				alert.setTitle("Novo Local");
+				alert.setMessage("Insira o nome para o novo Local");
+				alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+					public void onClick(DialogInterface dialog, int whichButton) {
+						String value = input.getText().toString().trim();
+						if(value.trim().length() == 0){
+							AlertDialog.Builder alertDialog = new AlertDialog.Builder(Gates.this);  
+							alertDialog.setTitle("Alerta");  
+							alertDialog.setMessage("Nome de local inválido!");  
+							alertDialog.setNegativeButton("OK", new DialogInterface.OnClickListener() {  
+								public void onClick(DialogInterface dialog, int which) {  
+									return;   
+								} });  
+							AlertDialog alert = alertDialog.create();
+							alert.show();
+						}
+						else {
+							closeOptionsMenu();
+							closeContextMenu();
+							localActual = value;
+							listaLocais.add(value); 
+							myArrayAdapterLocais.notifyDataSetChanged();
+							//Gravar local para ficheiro
+						}
+					}
+				});
+
+				alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+					public void onClick(DialogInterface dialog, int whichButton) {
+						dialog.cancel();
+					}
+				});
+				alert.show();    }
+		});
+		//
+		removeGate.setOnClickListener(new OnClickListener() {
+			public void onClick(View v) {
+				if(remover == false) {
+					remover = true;
+					removeGate.setTextColor(Color.MAGENTA);
+				}
+				else {
+					remover = false;
+					removeGate.setTextColor(Color.BLACK);
+				}
+			}
+		});
+
+		listaGates.setOnItemClickListener(new OnItemClickListener() {
+			public void onItemClick(AdapterView<?> parent, View view,int position, long id) { 
+				if(remover) {
+					listaGate.remove(position);
+					myArrayAdapter.notifyDataSetChanged();
+					removeGate.setTextColor(Color.BLACK);
+					remover = false;
+				}
+			}			
+		});
+	}
+
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		switch(keyCode){
+		case KeyEvent.KEYCODE_MENU:
+			Toast.makeText(this, "Menu key pressed", Toast.LENGTH_SHORT).show();
+			return true;
+		case KeyEvent.KEYCODE_HOME:
+			Toast.makeText(this, "Home key pressed", Toast.LENGTH_SHORT).show();
+			return true;
+		case KeyEvent.KEYCODE_BACK:
+			finish();
+			return true;
+		}
+		return super.onKeyDown(keyCode, event);
+	}
+
+	public String retiraExtraInfo(String string) {
+		String aux = string;
+		int i = 0;
+		while(aux.charAt(i) != '=' && i < aux.length()-1) {
+			i++;
+		}
+		return aux.substring(i+1);
+	}
+
+	@Override 
+	public boolean onCreateOptionsMenu(Menu menu) {
+		// Inflate the menu; this adds items to the action bar if it is present.
+		getMenuInflater().inflate(R.menu.main, menu);
+		return true;
+	}
+}
+
